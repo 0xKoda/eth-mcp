@@ -1,5 +1,7 @@
 # Ethereum RPC MCP Server
 
+[![smithery badge](https://smithery.ai/badge/@0xKoda/eth-mcp)](https://smithery.ai/server/@0xKoda/eth-mcp)
+
 A Model Context Protocol (MCP) server for interacting with Ethereum blockchain.
 
 ## Overview
@@ -17,6 +19,14 @@ This MCP server provides three key Ethereum RPC methods as tools:
 Note: More are coming
 
 ## Usage
+
+### Installing via Smithery
+
+To install Ethereum RPC MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@0xKoda/eth-mcp):
+
+```bash
+npx -y @smithery/cli install @0xKoda/eth-mcp --client claude
+```
 
 ### Adding to Cursor
 

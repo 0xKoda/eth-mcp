@@ -2,6 +2,10 @@
 
 A Model Context Protocol (MCP) server for interacting with Ethereum blockchain.
 
+<a href="https://glama.ai/mcp/servers/qpjvkozof7">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/qpjvkozof7/badge" alt="Ethereum RPC Server MCP server" />
+</a>
+
 ## Overview
 
 This MCP server provides tools to query Ethereum blockchain data through standard JSON-RPC methods. It enables AI assistants and applications to interact with the Ethereum blockchain through a standardized protocol.

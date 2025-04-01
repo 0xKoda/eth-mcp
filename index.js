@@ -18,6 +18,68 @@ const server = new McpServer({
   version: '1.0.0'
 });
 
+// Define prompts for common Ethereum interactions
+server.prompt(
+  'check-contract',
+  {
+    address: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe('The Ethereum address to check')
+  },
+  ({ address }) => ({
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `Please analyze the contract at address ${address}:
+1. First, get the contract code
+2. Check if it's a contract or regular address
+3. If it's a contract, help me understand what type of contract it might be based on the code`
+        }
+      }
+    ]
+  })
+);
+
+server.prompt(
+  'check-wallet',
+  {
+    address: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe('The Ethereum address to check')
+  },
+  ({ address }) => ({
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `Please analyze the wallet at address ${address}:
+1. Get the current balance
+2. Format the balance in both Wei and ETH
+3. Provide context about whether this is a significant amount`
+        }
+      }
+    ]
+  })
+);
+
+server.prompt(
+  'gas-analysis',
+  {},
+  () => ({
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `Please analyze the current gas situation:
+1. Get the current gas price
+2. Convert it to Gwei for readability
+3. Suggest whether this is a good time for transactions based on historical averages`
+        }
+      }
+    ]
+  })
+);
+
 // Helper function to make RPC calls
 async function makeRpcCall(method, params = []) {
   try {
@@ -125,139 +187,6 @@ server.tool(
     } catch (error) {
       return {
         content: [{ type: "text", text: `Error: Failed to get balance. ${error.message}` }],
-        isError: true
-      };
-    }
-  }
-);
-
-// Tool 4: eth_call - Executes a new message call without creating a transaction
-server.tool(
-  'eth_call',
-  'Executes a call to a contract function without creating a transaction',
-  {
-    transaction: z.object({
-      from: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional().describe('The address the transaction is sent from'),
-      to: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe('The address the transaction is directed to'),
-      gas: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of the gas provided for the transaction execution in hex'),
-      gasPrice: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of the gas price used for each paid gas in hex'),
-      value: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of the value sent with this transaction in hex'),
-      data: z.string().regex(/^0x[a-fA-F0-9]*$/).describe('The compiled code of a contract OR the hash of the invoked method signature and encoded parameters')
-    }).describe('The transaction call object'),
-    blockParameter: z.string().default('latest').describe('Block parameter (default: "latest")')
-  },
-  async (args) => {
-    try {
-      console.error(`Executing eth_call with transaction to: ${args.transaction.to} at block: ${args.blockParameter}`);
-      
-      const result = await makeRpcCall('eth_call', [args.transaction, args.blockParameter]);
-      
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Call result:\n${result}`
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{ type: "text", text: `Error: Failed to execute call. ${error.message}` }],
-        isError: true
-      };
-    }
-  }
-);
-
-// Tool 5: eth_getLogs - Retrieves logs matching the given filter criteria
-server.tool(
-  'eth_getLogs',
-  'Retrieves logs matching the given filter criteria',
-  {
-    filter: z.object({
-      fromBlock: z.string().optional().describe('Block number in hex or "latest", "earliest" or "pending"'),
-      toBlock: z.string().optional().describe('Block number in hex or "latest", "earliest" or "pending"'),
-      address: z.union([
-        z.string().regex(/^0x[a-fA-F0-9]{40}$/),
-        z.array(z.string().regex(/^0x[a-fA-F0-9]{40}$/))
-      ]).optional().describe('Contract address or a list of addresses from which logs should originate'),
-      topics: z.array(z.union([
-        z.string().regex(/^0x[a-fA-F0-9]{64}$/),
-        z.array(z.string().regex(/^0x[a-fA-F0-9]{64}$/)),
-        z.null()
-      ])).optional().describe('Array of 32 Bytes DATA topics')
-    }).describe('The filter options')
-  },
-  async (args) => {
-    try {
-      console.error(`Getting logs with filter: ${JSON.stringify(args.filter)}`);
-      
-      const logs = await makeRpcCall('eth_getLogs', [args.filter]);
-      
-      if (logs.length === 0) {
-        return {
-          content: [{ type: "text", text: "No logs found matching the filter criteria." }]
-        };
-      }
-      
-      // Format logs for better readability
-      const formattedLogs = logs.map((log, index) => {
-        return `Log #${index + 1}:
-  Address: ${log.address}
-  Block Number: ${parseInt(log.blockNumber, 16)}
-  Transaction Hash: ${log.transactionHash}
-  Topics: ${log.topics.join('\n          ')}
-  Data: ${log.data}`;
-      }).join('\n\n');
-      
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Found ${logs.length} logs:\n\n${formattedLogs}`
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{ type: "text", text: `Error: Failed to get logs. ${error.message}` }],
-        isError: true
-      };
-    }
-  }
-);
-
-// Tool 6: eth_sendTransaction - Sends a transaction to the network
-server.tool(
-  'eth_sendTransaction',
-  'Sends a transaction to the Ethereum network',
-  {
-    transaction: z.object({
-      from: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe('The address the transaction is sent from'),
-      to: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional().describe('The address the transaction is directed to'),
-      gas: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of the gas provided for the transaction execution in hex'),
-      gasPrice: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of the gas price used for each paid gas in hex'),
-      value: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of the value sent with this transaction in hex'),
-      data: z.string().regex(/^0x[a-fA-F0-9]*$/).optional().describe('The compiled code of a contract OR the hash of the invoked method signature and encoded parameters'),
-      nonce: z.string().regex(/^0x[a-fA-F0-9]+$/).optional().describe('Integer of a nonce used to prevent transaction replay')
-    }).describe('The transaction object')
-  },
-  async (args) => {
-    try {
-      console.error(`Sending transaction from: ${args.transaction.from}`);
-      
-      // Note: This will likely fail with a public node as it requires an unlocked account
-      // Most public nodes don't allow sending transactions directly (would need a wallet/private key)
-      const txHash = await makeRpcCall('eth_sendTransaction', [args.transaction]);
-      
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Transaction sent!\nTransaction Hash: ${txHash}\n\nNote: This request will only work on nodes where the 'from' account is unlocked. Most public nodes don't allow direct transaction sending.`
-        }]
-      };
-    } catch (error) {
-      return {
-        content: [{ 
-          type: "text", 
-          text: `Error: Failed to send transaction. ${error.message}\n\nNote: Most public RPC endpoints don't allow sending raw transactions as it requires an unlocked account. Consider using a wallet or signing the transaction locally before broadcasting.`
-        }],
         isError: true
       };
     }
